@@ -1,7 +1,7 @@
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
-
+const serverless = require('serverless-http');
 const app = express();
 app.use(express.json());
 app.use(cors());
@@ -233,8 +233,8 @@ app.post('/get_user', async (req, res) => {
   }
 });
 
-const PORT = 5500;
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-});
-// // module.exports.handler = serverless(app);
+// const PORT = 5500;
+// app.listen(PORT, () => {
+//   console.log(`Server running on http://localhost:${PORT}`);
+// });
+module.exports.handler = serverless(app);
