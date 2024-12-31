@@ -51,8 +51,7 @@ const generateSession = async (apiBody, apiBodyForKasm) => {
         'Content-Type': 'application/json',
       },
     });
-
-    const image = response.data.images.find((image) => image.description === apiBody.descriptionCourse);
+    const image = response.data.images.find((image) => image.friendly_name === apiBody.descriptionCourse);
     if (image) {
       apiBodyForKasm = {
         ...apiBodyForKasm,
@@ -168,15 +167,23 @@ app.post('/get_user', async (req, res) => {
           'Content-Type': 'application/json',
         },
       });
-      if (responseForGetKasms.data.kasms.length > 0) {
-        const userKasm = responseForGetKasms.data.kasms.find(kasm => kasm.user_id === user.data.user.user_id);
-        if (userKasm) {
-          const kasmUrl = `/#/session/${userKasm.kasm_id}`;
-          url = {
-            kasm_id: userKasm.kasm_id,
-            kasm_url: kasmUrl
-          }
-        }
+      if (
+        responseForGetKasms.data.kasms.length > 0 &&
+        responseForGetKasms.data.kasms.some(
+          kasm =>
+            kasm.user_id === user.data.user.user_id &&
+            kasm.image.friendly_name === descriptionCourse
+        )
+      ) {
+        const userKasm = responseForGetKasms.data.kasms.find(
+          kasm =>
+            kasm.user_id === user.data.user.user_id &&
+            kasm.image.friendly_name === descriptionCourse
+        );
+        url = {
+          kasm_id: userKasm.kasm_id,
+          kasm_url: `/#/session/${userKasm.kasm_id}`
+        };
       }
       else {
       const isGroupIdPresent = user.data.user.groups.some(group => group.group_id === group_id)
