@@ -180,9 +180,21 @@ app.post('/get_user', async (req, res) => {
             kasm.user_id === user.data.user.user_id &&
             kasm.image.friendly_name === descriptionCourse
         );
+        const apiBodyForGetKasmStatus = {
+          api_key: api_key,
+          api_key_secret: api_key_secret,
+          user_id: user.data.user.user_id,
+          kasm_id: userKasm.kasm_id
+        }
+        const responsegetkasmstatus = await axios.post(`${BASE_URL}/get_kasm_status`, apiBodyForGetKasmStatus, {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        })
         url = {
           kasm_id: userKasm.kasm_id,
-          kasm_url: `/#/session/${userKasm.kasm_id}`
+          redirectDashboard: false,
+          kasm_url: responsegetkasmstatus.data.kasm_url
         };
       }
       else {
