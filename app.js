@@ -252,7 +252,66 @@ app.post('/get_user', async (req, res) => {
   }
 });
 
-// const PORT = 5500;
+app.post('/get-sessions', async (req, res) => {
+  const { api_key, api_key_secret, target_user } = req.body;
+
+  if (!api_key || !api_key_secret || !target_user.username) {
+    return res.status(400).json({ message: 'Missing required fields' });
+  }
+
+  try {
+    const response = await axios.post(
+      `${BASE_URL}/get_kasms`,
+      {
+        api_key: api_key,
+        api_key_secret: api_key_secret
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    const filteredKasms = response.data.kasms.filter(kasm => kasm.user?.username === target_user.username);
+
+    res.status(200).json({ message: 'Session retrieved successfully', data: filteredKasms });
+  } catch (error) {
+    console.error(error.response ? error.response.data : error.message);
+    res.status(500).json({ message: 'Failed to retrieve session', error: error.response?.data || error.message });
+  }
+});
+
+app.post('/delete-session', async (req, res) => {
+  const { api_key, api_key_secret, target_user, kasm_id } = req.body;
+
+  if (!api_key || !api_key_secret || !target_user.user_id ) {
+    return res.status(400).json({ message: 'Missing required fields' });
+  }
+
+  try {
+    const response = await axios.post(
+      `${BASE_URL}/destroy_kasm`,
+      {
+        api_key: api_key,
+        api_key_secret: api_key_secret,
+        user_id: target_user.user_id,
+        kasm_id: kasm_id
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    res.status(200).json({ message: 'Session deleted successfully', data: response.data });
+  } catch (error) {
+    console.error(error.response ? error.response.data : error.message);
+    res.status(500).json({ message: 'Failed to delete session', error: error.response?.data || error.message });
+  }
+});
+
+const PORT = 5500;
 // app.listen(PORT, () => {
 //   console.log(`Server running on http://localhost:${PORT}`);
 // });
