@@ -65,8 +65,43 @@ const generateSession = async (apiBody, apiBodyForKasm) => {
           'Content-Type': 'application/json',
         },
       });
-      if (kasmResponse) {
-        return kasmResponse.data;
+
+      if (kasmResponse && kasmResponse.data.operational_status !== "running") {
+        const apiBodyForGetKasmStatus = {
+          api_key: apiBodyForKasm.api_key,
+          api_key_secret: apiBodyForKasm.api_key_secret,
+          user_id: kasmResponse.data.user_id,
+          kasm_id: kasmResponse.data.kasm_id,
+        };
+
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+
+        const responsegetkasmstatus = await axios.post(`${BASE_URL}/get_kasm_status`, apiBodyForGetKasmStatus, {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        if (responsegetkasmstatus && responsegetkasmstatus?.data?.kasm?.operational_status === "running") {
+          return kasmResponse.data;
+        } else {
+          await axios.post(
+            `${BASE_URL}/destroy_kasm`,
+            {
+              api_key: apiBodyForKasm.api_key,
+              api_key_secret: apiBodyForKasm.api_key_secret,
+              user_id: kasmResponse.data.user_id,
+              kasm_id: kasmResponse.data.kasm_id,
+            },
+            {
+              headers: {
+                'Content-Type': 'application/json',
+              },
+            }
+          );
+          return {
+            error: 'session could not run and timed out',
+          };
+        }
       } else {
         console.log('No kasm found!');
       }
@@ -77,6 +112,7 @@ const generateSession = async (apiBody, apiBodyForKasm) => {
     console.error('Error:', error.response ? error.response.data : error.message);
   }
 };
+
 
 app.post('/get_user', async (req, res) => {
   let url = '';
@@ -278,6 +314,37 @@ app.post('/get-sessions', async (req, res) => {
   } catch (error) {
     console.error(error.response ? error.response.data : error.message);
     res.status(500).json({ message: 'Failed to retrieve session', error: error.response?.data || error.message });
+  }
+});
+
+app.post('/logout_user', async (req, res) => {
+  const { api_key, api_key_secret, target_user } = req.body;
+
+  if (!api_key || !api_key_secret || !target_user.user_id ) {
+    return res.status(400).json({ message: 'Missing required fields' });
+  }
+
+  try {
+    const response = await axios.post(
+      `${BASE_URL}/logout_user`,
+      {
+        api_key: api_key,
+        api_key_secret: api_key_secret,
+        target_user: {
+          user_id: target_user.user_id,
+        }
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    res.status(200).json({ message: 'User deleted successfully', data: response.data });
+  } catch (error) {
+    console.error(error.response ? error.response.data : error.message);
+    res.status(500).json({ message: 'Failed to delete session', error: error.response?.data || error.message });
   }
 });
 
