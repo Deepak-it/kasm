@@ -3,10 +3,14 @@ const axios = require('axios');
 const cors = require('cors');
 const serverless = require('serverless-http');
 const app = express();
+const dotenv = require('dotenv')
+
 app.use(express.json());
 app.use(cors());
+dotenv.config();
 
-const BASE_URL = 'https://iris.kasmtestingdevops.in/api/public';
+const BASE_URL = process.env.API_BASE_URL;
+const COMMON_USER_PASSWORD = process.env.COMMON_USER_PASSWORD;
 
 function generateRandomPassword(username) {
   const getRandomSpecialCharacter = () => ['$', '#', '@', '&'][Math.floor(Math.random() * 4)];
@@ -74,34 +78,46 @@ const generateSession = async (apiBody, apiBodyForKasm) => {
           kasm_id: kasmResponse.data.kasm_id,
         };
 
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        const MAX_RETRIES = 15;
+        const DELAY_MS = 2000; 
 
-        const responsegetkasmstatus = await axios.post(`${BASE_URL}/get_kasm_status`, apiBodyForGetKasmStatus, {
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
-        if (responsegetkasmstatus && responsegetkasmstatus?.data?.kasm?.operational_status === "running") {
-          return kasmResponse.data;
-        } else {
-          await axios.post(
-            `${BASE_URL}/destroy_kasm`,
-            {
-              api_key: apiBodyForKasm.api_key,
-              api_key_secret: apiBodyForKasm.api_key_secret,
-              user_id: kasmResponse.data.user_id,
-              kasm_id: kasmResponse.data.kasm_id,
-            },
+        for (let i = 0; i < MAX_RETRIES; i++) {
+          await new Promise((resolve) => setTimeout(resolve, DELAY_MS));
+
+          const responsegetkasmstatus = await axios.post(
+            `${BASE_URL}/get_kasm_status`,
+            apiBodyForGetKasmStatus,
             {
               headers: {
                 'Content-Type': 'application/json',
               },
             }
           );
-          return {
-            error: 'session could not run and timed out',
-          };
+
+          if (responsegetkasmstatus?.data?.kasm?.operational_status === "running") {
+            return kasmResponse.data;
+          }
         }
+
+        await axios.post(
+          `${BASE_URL}/destroy_kasm`,
+          {
+            api_key: apiBodyForKasm.api_key,
+            api_key_secret: apiBodyForKasm.api_key_secret,
+            user_id: kasmResponse.data.user_id,
+            kasm_id: kasmResponse.data.kasm_id,
+          },
+          {
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+
+        return {
+          error: 'session could not run and timed out',
+          sessionTimedOut: true
+        };
       } else {
         console.log('No kasm found!');
       }
@@ -135,7 +151,7 @@ app.post('/get_user', async (req, res) => {
         api_key_secret: api_key_secret,
         target_user: {
           username: target_user.username,
-          password: '123@Deepak',
+          password: COMMON_USER_PASSWORD,
         }
       };
       const createdUser = await createUser(apiBodyForCreateUser);
@@ -157,7 +173,7 @@ app.post('/get_user', async (req, res) => {
           api_key: api_key,
           api_key_secret: api_key_secret,
           user_id: createdUser.data.user.user_id,
-          launch_selections: { username: createdUser.data.user.user_id, password: '123@Deepak' },
+          launch_selections: { username: createdUser.data.user.user_id, password: COMMON_USER_PASSWORD },
         };
         url = await generateSession(apiBodyForImage, apiBodyForKasm);
       }
